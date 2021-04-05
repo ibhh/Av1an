@@ -1,22 +1,32 @@
-import time
-import sys
 import concurrent
 import concurrent.futures
-from typing import List
-from av1an.target_quality import TargetQuality
-from av1an.encoder import ENCODERS
-from av1an.utils import frame_probe, terminate
-from av1an.resume import write_progress_file
-from av1an.chunk import Chunk
-from av1an.logger import log
+import sys
+import time
 from pathlib import Path
+
+from av1an.chunk import Chunk
+from av1an.encoder import ENCODERS
+from av1an.logger import log
+from av1an.resume import write_progress_file
+from av1an.target_quality import TargetQuality
+from av1an.utils import frame_probe, terminate
 from .Pipes import tqdm_bar
+
+
+def frame_check_output(chunk: Chunk, expected_frames: int) -> int:
+    actual_frames = frame_probe(chunk.output_path)
+    if actual_frames != expected_frames:
+        msg = f'Chunk #{chunk.index}: {actual_frames}/{expected_frames} fr'
+        log(msg)
+        print('::' + msg)
+    return actual_frames
 
 
 class Queue:
     """
     Queue manager with ability to add/remove/restart jobs
     """
+
     def __init__(self, project, chunk_queue):
         self.chunk_queue = chunk_queue
         self.queue = []
@@ -85,18 +95,21 @@ class Queue:
                     self.project, chunk)
 
                 # get the number of encoded frames, if no check assume it worked and encoded same number of frames
-                encoded_frames = chunk_frames if self.project.no_check else self.frame_check_output(
-                    chunk, chunk_frames)
+                encoded_frames = chunk_frames if self.project.no_check else frame_check_output(chunk, chunk_frames)
 
                 # write this chunk as done if it encoded correctly
                 if encoded_frames == chunk_frames:
-                    write_progress_file(Path(self.project.temp / 'done.json'),
-                                        chunk, encoded_frames)
+                    write_progress_file(Path(self.project.temp / 'done.json'), chunk, encoded_frames)
+                else:
+                    restart_count += 1
+                    msg = f'Chunk #{chunk.index} Encoder did not finish with expected frame count!'
+                    log(msg)
+                    print(f'{msg}\n')
+                    continue
 
                 enc_time = round(time.time() - st_time, 2)
                 log(f'Done: {chunk.index} Fr: {encoded_frames}/{chunk_frames}')
-                log(f'Fps: {round(encoded_frames / enc_time, 4)} Time: {enc_time} sec.'
-                    )
+                log(f'Fps: {round(encoded_frames / enc_time, 4)} Time: {enc_time} sec.')
                 return
 
             except Exception as e:
@@ -109,14 +122,3 @@ class Queue:
         log(msg1, msg2)
         print(f'::{msg1}\n::{msg2}')
         self.status = 'FATAL'
-
-    def frame_check_output(self,
-                           chunk: Chunk,
-                           expected_frames: int,
-                           last_chunk=False) -> int:
-        actual_frames = frame_probe(chunk.output_path)
-        if actual_frames != expected_frames:
-            msg = f'Chunk #{chunk.index}: {actual_frames}/{expected_frames} fr'
-            log(msg)
-            print('::' + msg)
-        return actual_frames
