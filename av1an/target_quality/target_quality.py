@@ -123,6 +123,9 @@ class TargetQuality:
                 vmaf_cq.append((score_2, next_q))
 
                 # Check if new probe has better result
+                # -> check if result is better than the last one (will increase VMAF)
+                # -> check if result is greater than target (will decrease VMAF for convergence to target VMAF
+                # as q will increase -> quality will decrease)
                 if new_vmaf <= score_2 or score_2 > self.target:
                     new_vmaf = score_2
                     new_q = next_q
