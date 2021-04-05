@@ -85,11 +85,8 @@ class TargetQuality:
         if self.probes < 3:
             return self.fast_search(chunk)
 
-        q_list = []
-
         # Make middle probe
         middle_point = (self.min_q + self.max_q) // 2
-        q_list.append(middle_point)
         last_q = middle_point
 
         score = VMAF.read_weighted_vmaf(self.vmaf_probe(chunk, last_q))
@@ -104,14 +101,37 @@ class TargetQuality:
         # Branch
         if score < self.target:
             next_q = self.min_q
-            q_list.append(self.min_q)
         else:
             next_q = self.max_q
-            q_list.append(self.max_q)
 
         # Edge case check
-        score = VMAF.read_weighted_vmaf(self.vmaf_probe(chunk, next_q))
-        vmaf_cq.append((score, next_q))
+        score_2 = VMAF.read_weighted_vmaf(self.vmaf_probe(chunk, next_q))
+        vmaf_cq.append((score_2, next_q))
+
+        # Problem handling (certain q can produce errors with certain codecs)
+        # This case distinction relies on VMAF producing reasonable scores and assumes encoding failure otherwise
+        # If the target VMAF was not reached by last_q and the new score_2 is even less, there might be an error
+        # TODO: If score_2 == score there might be an error that might not be fixed by adjusting q
+        if score_2 < score < self.target:
+            log(f"{chunk.name}: Bad second probe (q: {str(next_q)}, vmaf: {str(score_2)}): {str(sorted(vmaf_cq))}")
+            new_vmaf = score  # will be best guess for VMAF
+            new_q = last_q  # will be best guess for q
+            while (score_2 < score or score_2 > self.target) and next_q < last_q:
+                log(f"{chunk.name}: VMAF {str(score_2)} for q: {str(next_q)}: increasing q")
+                next_q += 1
+                score_2 = VMAF.read_weighted_vmaf(self.vmaf_probe(chunk, next_q))
+                vmaf_cq.append((score_2, next_q))
+
+                # Check if new probe has better result
+                if new_vmaf <= score_2 or score_2 > self.target:
+                    new_vmaf = score_2
+                    new_q = next_q
+
+            log(f"{chunk.name}: Using q: {str(new_q)} with VMAF {str(new_vmaf)}: {str(sorted(vmaf_cq))}")
+            self.log_probes(vmaf_cq, frames, chunk.name, new_q, new_vmaf)
+            return new_q
+
+        score = score_2
 
         if (next_q == self.min_q and score < self.target) or (next_q == self.max_q and score > self.target):
             self.log_probes(vmaf_cq, frames, chunk.name, next_q, score,
@@ -134,7 +154,6 @@ class TargetQuality:
             if new_point in [x[1] for x in vmaf_cq]:
                 break
 
-            q_list.append(new_point)
             score = VMAF.read_weighted_vmaf(self.vmaf_probe(chunk, new_point))
             vmaf_cq.append((score, new_point))
 
