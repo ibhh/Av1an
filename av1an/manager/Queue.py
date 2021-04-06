@@ -72,12 +72,20 @@ class Queue:
 
                 log(f'Enc: {chunk.index}, {chunk_frames} fr')
 
-                # Target Quality Mode
-                if self.project.target_quality:
+                # Target Quality Mode / if failed twice before -> increase q to improve chances of success
+                if self.project.target_quality and restart_count < 2:
                     if self.project.target_quality_method == 'per_shot':
                         self.tq.per_shot_target_quality_routine(chunk)
                     if self.project.target_quality_method == 'per_frame':
                         self.tq.per_frame_target_quality_routine(chunk)
+                elif self.project.target_quality:
+                    log(f'Chunk #{chunk.index} Trying to increase q to avoid encoding failure!')
+                    if self.project.target_quality_method == 'per_shot':
+                        chunk.per_shot_target_quality_cq += 1
+                        log(f'Chunk #{chunk.index} Increased shot_target_quality to '
+                            f'{str(chunk.per_shot_target_quality_cq)}!')
+                    if self.project.target_quality_method == 'per_frame':
+                        log(f'Chunk #{chunk.index} Increasing q for per frame quality is not supported yet!')
 
                 ENCODERS[self.project.encoder].on_before_chunk(
                     self.project, chunk)
@@ -105,7 +113,11 @@ class Queue:
                     msg = f'Chunk #{chunk.index} Encoder did not finish with expected frame count!'
                     log(msg)
                     print(f'{msg}\n')
-                    continue
+
+                    if restart_count == 3:
+                        log(f'Chunk #{chunk.index} Finishing anyway because it could not be fixed automatically.')
+                    else:
+                        continue
 
                 enc_time = round(time.time() - st_time, 2)
                 log(f'Done: {chunk.index} Fr: {encoded_frames}/{chunk_frames}')
