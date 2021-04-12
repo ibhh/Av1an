@@ -5,7 +5,6 @@ import time
 from pathlib import Path
 
 from av1an.chunk import Chunk
-from av1an.encoder import ENCODERS
 from av1an.logger import log
 from av1an.resume import write_progress_file
 from av1an.target_quality import TargetQuality
@@ -87,9 +86,6 @@ class Queue:
                     if self.project.target_quality_method == 'per_frame':
                         log(f'Chunk #{chunk.index} Increasing q for per frame quality is not supported yet!')
 
-                ENCODERS[self.project.encoder].on_before_chunk(
-                    self.project, chunk)
-
                 # skip first pass if reusing
                 start = 2 if self.project.reuse_first_pass and self.project.passes >= 2 else 1
 
@@ -98,9 +94,6 @@ class Queue:
                     tqdm_bar(self.project, chunk, self.project.encoder,
                              self.project.counter, chunk_frames,
                              self.project.passes, current_pass)
-
-                ENCODERS[self.project.encoder].on_after_chunk(
-                    self.project, chunk)
 
                 # get the number of encoded frames, if no check assume it worked and encoded same number of frames
                 encoded_frames = chunk_frames if self.project.no_check else frame_check_output(chunk, chunk_frames)
