@@ -109,8 +109,10 @@ With your own parameters:
 
     -cm  --chunk_method     Determine the method in which chunks are made for encoding.
                             By default the best method is selected automatically in this order:
-                            vs_ffms2 > vs_lsmash > hybrid
-                            ['hybrid'(default), 'select', 'vs_ffms2'(Recommended), 'vs_lsmash']
+                            vs_ffms2 > vs_lsmash > hybrid.
+                            vs_ffms2 or vs_lsmash are recommended.
+                            ['hybrid'(default), 'select', 'vs_ffms2', 'vs_lsmash']
+
 
     -tr  --threshold        PySceneDetect threshold for scene detection Default: 35
 
@@ -202,7 +204,7 @@ With your own parameters:
 -   Encoder of choice:
     -   [Install AOMENC](https://aomedia.googlesource.com/aom/)
     -   [Install rav1e](https://github.com/xiph/rav1e)
-    -   [Install SVT-AV1](https://github.com/OpenVisualCloud/SVT-AV1)
+    -   [Install SVT-AV1](https://gitlab.com/AOMediaCodec/SVT-AV1)
     -   [Install SVT-VP9](https://github.com/OpenVisualCloud/SVT-VP9)
     -   [Install vpx](https://chromium.googlesource.com/webm/libvpx/) VP9, VP8 encoding
     -   [Install VTM](https://vcgit.hhi.fraunhofer.de/jvet/VVCSoftware_VTM) VVC encoding test model
